@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Key Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 300px;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #copyBtn {
+      background-color: #ffc107;
+    }
+    #copyBtn:hover {
+      background-color: #e0a800;
+    }
+    #result {
+      margin-top: 10px;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Key Details</h2>
+    <p><b>Key:</b> <span id="key"></span></p>
+    <button id="copyBtn" onclick="copyKey()">Copy Key</button>
+    <input type="text" id="urlInput" placeholder="Nhập URL để tạo shortlink">
+    <button onclick="createShortlink()">Tạo Shortlink</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const key = window.location.pathname.split('/').pop();
+    document.getElementById('key').innerText = key;
+    let currentKey = key;
+
+    async function createShortlink() {
+      const url = document.getElementById('urlInput').value;
+      if (!url) {
+        document.getElementById('result').innerText = 'Vui lòng nhập URL!';
+        return;
+      }
+      try {
+        const response = await fetch('/shorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+          document.getElementById('result').innerHTML = `
+            <p><b>New Key:</b> ${data.key}</p>
+            <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
+            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
+            <p>Hết hạn sau 24h</p>`;
+          currentKey = data.key;
+          document.getElementById('copyBtn').style.display = 'block';
+        } else {
+          document.getElementById('result').innerText = 'Lỗi: ' + data.message;
+        }
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
+    function copyKey() {
+      if (currentKey) {
+        navigator.clipboard.writeText(currentKey).then(() => {
+          alert('Đã copy key: ' + currentKey);
+        }).catch(err => {
+          alert('Lỗi copy: ' + err);
+        });
+      } else {
+        alert('Chưa có key để copy!');
+      }
+    }
+  </script>
+</body>
+</html>
