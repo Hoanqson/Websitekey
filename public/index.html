@@ -87,6 +87,7 @@
           document.getElementById('result').innerHTML = `
             <p><b>Key:</b> ${data.key}</p>
             <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
+            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
             <p>Hết hạn sau 24h</p>`;
           document.getElementById('copyBtn').style.display = 'block';
         } else {
@@ -111,6 +112,7 @@
           currentKey = data.key;
           document.getElementById('result').innerHTML = `
             <p><b>Key:</b> ${data.key}</p>
+            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
             <p>Hết hạn sau 24h</p>`;
           document.getElementById('copyBtn').style.display = 'block';
         } else {
