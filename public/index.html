@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -29,6 +28,7 @@
       margin: 10px 0;
       border: 1px solid #ccc;
       border-radius: 4px;
+      box-sizing: border-box;
     }
     button {
       background-color: #28a745;
@@ -44,6 +44,12 @@
     #randomBtn:hover {
       background-color: #0056b3;
     }
+    #copyBtn {
+      background-color: #ffc107;
+    }
+    #copyBtn:hover {
+      background-color: #e0a800;
+    }
     #result {
       margin-top: 10px;
       word-wrap: break-word;
@@ -57,9 +63,12 @@
     <button onclick="createShortlink()">Tạo Shortlink & Lấy Key</button>
     <button id="randomBtn" onclick="generateRandomKey()">Tạo Key Random</button>
     <div id="result"></div>
+    <button id="copyBtn" style="display: none;" onclick="copyKey()">Copy Key</button>
   </div>
 
   <script>
+    let currentKey = '';
+
     async function createShortlink() {
       const url = document.getElementById('urlInput').value;
       if (!url) {
@@ -74,15 +83,19 @@
         });
         const data = await response.json();
         if (data.status === 'success') {
+          currentKey = data.key;
           document.getElementById('result').innerHTML = `
             <p><b>Key:</b> ${data.key}</p>
             <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
             <p>Hết hạn sau 24h</p>`;
+          document.getElementById('copyBtn').style.display = 'block';
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
+          document.getElementById('copyBtn').style.display = 'none';
         }
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+        document.getElementById('copyBtn').style.display = 'none';
       }
     }
 
@@ -90,19 +103,35 @@
       try {
         const response = await fetch('/generate', {
           method: 'POST',
-          headers: { 'Content-Type: application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: '{}'
         });
         const data = await response.json();
         if (data.status === 'success') {
+          currentKey = data.key;
           document.getElementById('result').innerHTML = `
             <p><b>Key:</b> ${data.key}</p>
             <p>Hết hạn sau 24h</p>`;
+          document.getElementById('copyBtn').style.display = 'block';
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
+          document.getElementById('copyBtn').style.display = 'none';
         }
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+        document.getElementById('copyBtn').style.display = 'none';
+      }
+    }
+
+    function copyKey() {
+      if (currentKey) {
+        navigator.clipboard.writeText(currentKey).then(() => {
+          alert('Đã copy key: ' + currentKey);
+        }).catch(err => {
+          alert('Lỗi copy: ' + err);
+        });
+      } else {
+        alert('Chưa có key để copy!');
       }
     }
   </script>
