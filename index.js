@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -12,12 +13,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Phục vụ file tĩnh (website HTML)
+app.use(express.static(path.join(__dirname, 'public')));
+
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
 let validKeys = {};
 
 // Endpoint tạo shortlink qua yeumoney và sinh key 24h
 app.post('/shorten', async (req, res) => {
-  const { url } = req.body; // URL cần rút gọn (ví dụ: website của bạn)
+  const { url } = req.body;
   if (!url) return res.status(400).json({ status: 'error', message: 'Missing url' });
 
   try {
@@ -31,7 +35,7 @@ app.post('/shorten', async (req, res) => {
     if (data.status === 'success' && data.shortenedUrl) {
       const shortUrl = data.shortenedUrl;
       const timestamp = Date.now();
-      const randomPart = crypto.randomBytes(4).toString('hex'); // Random để key unique
+      const randomPart = crypto.randomBytes(4).toString('hex');
       const key = crypto.createHash('md5').update(shortUrl + randomPart + timestamp).digest('hex').substring(0, 16);
       validKeys[key] = { createdAt: timestamp, shortUrl: shortUrl, originalUrl: url };
       res.json({ status: 'success', key: key, shortUrl: shortUrl, expiresIn: 24 * 60 * 60 * 1000 });
@@ -44,7 +48,7 @@ app.post('/shorten', async (req, res) => {
   }
 });
 
-// Endpoint tạo key random (không dùng yeumoney)
+// Endpoint tạo key random
 app.post('/generate', (req, res) => {
   const key = crypto.randomBytes(8).toString('hex');
   const timestamp = Date.now();
@@ -68,6 +72,11 @@ app.post('/verify', (req, res) => {
 // Test endpoint
 app.get('/test', (req, res) => {
   res.json({ message: 'Server ok!' });
+});
+
+// Phục vụ website
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, () => {
