@@ -38,7 +38,8 @@ app.post('/shorten', async (req, res) => {
       const randomPart = crypto.randomBytes(4).toString('hex');
       const key = crypto.createHash('md5').update(shortUrl + randomPart + timestamp).digest('hex').substring(0, 16);
       validKeys[key] = { createdAt: timestamp, shortUrl: shortUrl, originalUrl: url };
-      res.json({ status: 'success', key: key, shortUrl: shortUrl, expiresIn: 24 * 60 * 60 * 1000 });
+      const keyUrl = `${req.protocol}://${req.get('host')}/key/${key}`;
+      res.json({ status: 'success', key: key, shortUrl: shortUrl, keyUrl: keyUrl, expiresIn: 24 * 60 * 60 * 1000 });
     } else {
       res.json({ status: 'error', message: data.message || 'Failed to create shortlink' });
     }
@@ -53,7 +54,8 @@ app.post('/generate', (req, res) => {
   const key = crypto.randomBytes(8).toString('hex');
   const timestamp = Date.now();
   validKeys[key] = { createdAt: timestamp, shortUrl: 'none', originalUrl: 'none' };
-  res.json({ status: 'success', key: key, expiresIn: 24 * 60 * 60 * 1000 });
+  const keyUrl = `${req.protocol}://${req.get('host')}/key/${key}`;
+  res.json({ status: 'success', key: key, keyUrl: keyUrl, expiresIn: 24 * 60 * 60 * 1000 });
 });
 
 // Endpoint verify key
@@ -69,12 +71,23 @@ app.post('/verify', (req, res) => {
   }
 });
 
+// Phục vụ website nhỏ cho key cụ thể
+app.get('/key/:keyId', (req, res) => {
+  const keyId = req.params.keyId;
+  const keyData = validKeys[keyId];
+  if (keyData && (Date.now() - keyData.createdAt) < 24 * 60 * 60 * 1000) {
+    res.sendFile(path.join(__dirname, 'public', 'key.html'));
+  } else {
+    res.status(404).send('Key not found or expired');
+  }
+});
+
 // Test endpoint
 app.get('/test', (req, res) => {
   res.json({ message: 'Server ok!' });
 });
 
-// Phục vụ website
+// Phục vụ website chính
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
