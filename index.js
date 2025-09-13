@@ -21,6 +21,15 @@ const ADMIN_PASSWORD = 'admin123'; // Thay mạnh hơn
 const REDIS_URL = process.env.REDIS_URL || 'redis://red-d32drbruibrs739opo7g:6379'; // Fallback KV
 let mainScript = `print("Default script: Key hợp lệ!")`;
 
+// Middleware authAdmin
+const authAdmin = (req, res, next) => {
+  const { password } = req.body;
+  if (!password || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ status: 'error', message: 'Sai mật khẩu admin' });
+  }
+  next();
+};
+
 // Kết nối Redis với retry và error handling
 let redis;
 async function connectRedis() {
@@ -138,7 +147,7 @@ async function getAllKeysFromRedis() {
   }
 }
 
-// Endpoint tạo shortlink (khôi phục logic ban đầu)
+// Endpoint tạo shortlink
 app.post('/shorten', async (req, res) => {
   try {
     const keyUrlId = `${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}`;
