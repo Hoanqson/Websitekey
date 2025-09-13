@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f0f0f0;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 800px;
+      margin: auto;
+    }
+    textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    #result {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Admin Panel</h2>
+    <h3>Thêm Script Roblox</h3>
+    <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
+    <button onclick="saveScript()">Lưu Script</button>
+    <div id="result"></div>
+    <h3>Danh Sách Key</h3>
+    <table id="keyTable">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Shortlink</th>
+          <th>Original URL</th>
+          <th>Thời Gian Tạo</th>
+          <th>Trạng Thái</th>
+        </tr>
+      </thead>
+      <tbody id="keyList"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function loadKeys() {
+      try {
+        const response = await fetch('/admin/keys');
+        const keys = await response.json();
+        const tbody = document.getElementById('keyList');
+        tbody.innerHTML = '';
+        keys.forEach(key => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${key.key}</td>
+            <td><a href="${key.shortUrl}" target="_blank">${key.shortUrl}</a></td>
+            <td>${key.originalUrl}</td>
+            <td>${key.createdAt}</td>
+            <td>${key.isExpired ? 'Hết hạn' : 'Còn hạn'}</td>`;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi load key: ' + error.message;
+      }
+    }
+
+    async function saveScript() {
+      const script = document.getElementById('scriptInput').value;
+      if (!script) {
+        document.getElementById('result').innerText = 'Vui lòng nhập script!';
+        return;
+      }
+      try {
+        const response = await fetch('/admin/script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ script })
+        });
+        const data = await response.json();
+        document.getElementById('result').innerText = data.message;
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
+    // Load key khi mở trang
+    loadKeys();
+  </script>
+</body>
+</html>
