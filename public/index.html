@@ -35,12 +35,6 @@
     button:hover {
       background-color: #218838;
     }
-    #copyBtn {
-      background-color: #ffc107;
-    }
-    #copyBtn:hover {
-      background-color: #e0a800;
-    }
     #result {
       margin-top: 10px;
       word-wrap: break-word;
@@ -52,48 +46,26 @@
     <h2>Lấy Key Free</h2>
     <button onclick="getKey()">Lấy Key</button>
     <div id="result"></div>
-    <button id="copyBtn" style="display: none;" onclick="copyKey()">Copy Key</button>
   </div>
 
   <script>
-    let currentKey = '';
-    // URL script chính (thay bằng URL thật của bạn, ví dụ pastebin)
-    const SCRIPT_URL = 'https://pastebin.com/raw/abc123';
-
     async function getKey() {
       try {
         const response = await fetch('/shorten', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: SCRIPT_URL })
+          body: JSON.stringify({})
         });
         const data = await response.json();
         if (data.status === 'success') {
-          currentKey = data.key;
           document.getElementById('result').innerHTML = `
-            <p><b>Key:</b> ${data.key}</p>
             <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
-            <p>Hết hạn sau 24h</p>`;
-          document.getElementById('copyBtn').style.display = 'block';
+            <p>Click shortlink để lấy key!</p>`;
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
-          document.getElementById('copyBtn').style.display = 'none';
         }
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
-        document.getElementById('copyBtn').style.display = 'none';
-      }
-    }
-
-    function copyKey() {
-      if (currentKey) {
-        navigator.clipboard.writeText(currentKey).then(() => {
-          alert('Đã copy key: ' + currentKey);
-        }).catch(err => {
-          alert('Lỗi copy: ' + err);
-        });
-      } else {
-        alert('Chưa có key để copy!');
       }
     }
   </script>
