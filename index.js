@@ -17,10 +17,30 @@ app.use(cors({
 app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
-const ADMIN_PASSWORD = 'admin123'; // Thay mạnh hơn
-const REDIS_URL = process.env.REDIS_URL || 'redis://red-d32dg0gdl3ps7380pudg:6379';
-const redis = new Redis(REDIS_URL); // Kết nối KV
+const ADMIN_PASSWORD = 'admin123'; // Thay bằng mật khẩu mạnh hơn
+const REDIS_URL = process.env.REDIS_URL || 'redis://red-d32dg0gdl3ps7380pudg:6379'; // Internal URL, fallback nếu env không set
 let mainScript = `print("Default script: Key hợp lệ!")`;
+
+// Kết nối Redis với retry và error handling
+let redis;
+function connectRedis() {
+  redis = new Redis(REDIS_URL, {
+    retryDelayOnFailover: 100,
+    enableReadyCheck: false,
+    maxRetriesPerRequest: null, // Tắt retry limit để tránh lỗi "max retries per request"
+    lazyConnect: true
+  });
+  redis.on('error', (err) => {
+    console.error('Redis connection error:', err.message);
+  });
+  redis.on('connect', () => {
+    console.log('Connected to Redis KV successfully!');
+  });
+  redis.on('ready', () => {
+    console.log('Redis ready!');
+  });
+}
+connectRedis(); // Kết nối ngay
 
 const authAdmin = (req, res, next) => {
   const { password } = req.body;
@@ -29,38 +49,65 @@ const authAdmin = (req, res, next) => {
   next();
 };
 
+// Lưu key vào Redis
 async function saveKeyToRedis(key, keyData) {
-  await redis.set(`key:${key}`, JSON.stringify(keyData), 'EX', 86400); // 24h TTL
+  try {
+    await redis.set(`key:${key}`, JSON.stringify(keyData), 'EX', 86400); // 24h TTL
+    console.log(`Saved key to Redis: ${key}`);
+  } catch (error) {
+    console.error('Error saving to Redis:', error.message);
+    throw error;
+  }
 }
 
+// Lấy key từ Redis
 async function getKeyFromRedis(key) {
-  const data = await redis.get(`key:${key}`);
-  return data ? JSON.parse(data) : null;
+  try {
+    const data = await redis.get(`key:${key}`);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error('Error getting from Redis:', error.message);
+    return null;
+  }
 }
 
+// Xóa key từ Redis
 async function deleteKeyFromRedis(key) {
-  await redis.del(`key:${key}`);
+  try {
+    await redis.del(`key:${key}`);
+    console.log(`Deleted key from Redis: ${key}`);
+  } catch (error) {
+    console.error('Error deleting from Redis:', error.message);
+    throw error;
+  }
 }
 
+// Lấy tất cả key từ Redis
 async function getAllKeysFromRedis() {
-  const keys = [];
-  let cursor = 0;
-  do {
-    const [nextCursor, keyList] = await redis.scan(cursor, 'MATCH', 'key:*', 'COUNT', 100);
-    cursor = parseInt(nextCursor);
-    for (const k of keyList) {
-      const data = await redis.get(k);
-      if (data) keys.push({ key: k.replace('key:', ''), data: JSON.parse(data) });
-    }
-  } while (cursor !== 0);
-  return keys;
+  try {
+    const keys = [];
+    let cursor = 0;
+    do {
+      const [nextCursor, keyList] = await redis.scan(cursor, 'MATCH', 'key:*', 'COUNT', 100);
+      cursor = parseInt(nextCursor);
+      for (const k of keyList) {
+        const data = await redis.get(k);
+        if (data) keys.push({ key: k.replace('key:', ''), data: JSON.parse(data) });
+      }
+    } while (cursor !== 0);
+    return keys;
+  } catch (error) {
+    console.error('Error getting all keys from Redis:', error.message);
+    return [];
+  }
 }
 
+// Endpoint tạo shortlink
 app.post('/shorten', async (req, res) => {
   try {
     const keyUrlId = `${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}`;
     const keyUrl = `${req.protocol}://${req.get('host')}/key/${keyUrlId}`;
-
+    
     const apiUrl = `https://yeumoney.com/QL_api.php?token=${YEUMONEY_TOKEN}&format=json&url=${encodeURIComponent(keyUrl)}`;
     console.log(`Calling yeumoney API: ${apiUrl}`);
     const response = await fetch(apiUrl, {
@@ -87,6 +134,7 @@ app.post('/shorten', async (req, res) => {
   }
 });
 
+// Endpoint verify key
 app.post('/verify', async (req, res) => {
   const { key } = req.body;
   const now = Date.now();
@@ -101,6 +149,7 @@ app.post('/verify', async (req, res) => {
   }
 });
 
+// Các endpoint khác giữ nguyên (website nhỏ, admin, v.v.)
 app.get('/key/:keyUrlId', async (req, res) => {
   const keyUrlId = req.params.keyUrlId;
   console.log(`Accessing keyUrlId: ${keyUrlId}`);
