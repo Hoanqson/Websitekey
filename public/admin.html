@@ -39,7 +39,7 @@
       <h3>Tạo Key Thủ Công</h3>
       <input type="text" id="addKeyInput" placeholder="Nhập key (tùy chọn, để trống sẽ tự tạo)">
       <input type="number" id="addKeyDuration" placeholder="Thời gian key (giờ, tùy chọn)" min="1" value="24">
-      <input type="text" id="addKeyUrlInput" placeholder="URL (tự tạo, ví dụ: /key/{key})">
+      <input type="text" id="addKeyUrlInput" placeholder="URL (tự tạo, ví dụ: https://websitekey.onrender.com/key/{key})">
       <button onclick="addKey()">Tạo Key</button>
       <h3>Danh Sách Key</h3>
       <table id="keyTable">
@@ -160,8 +160,8 @@
       let keyUrl = document.getElementById('addKeyUrlInput').value;
       const password = document.getElementById('passwordInput').value;
       const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu không nhập
-      keyUrl = keyUrl.replace('{key}', key) || `${window.location.origin}/key/${key}`; // Tự tạo URL
-      const shortUrl = keyUrl; // Giả lập, thay bằng API yeumoney nếu cần
+      keyUrl = keyUrl.replace('{key}', key) || `https://websitekey.onrender.com/key/${key}`; // URL tự tạo
+      const shortUrl = keyUrl; // Giả lập shortUrl (thay bằng API yeumoney nếu cần)
 
       if (!keyUrl) {
         document.getElementById('result').innerText = 'Vui lòng nhập URL!';
@@ -170,8 +170,13 @@
       try {
         const timestamp = Date.now();
         const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId: key, originalUrl: keyUrl, expiresIn: duration * 60 * 60 }; // Chuyển giờ sang giây
-        await saveKeyToRedis(key, keyData);
-        document.getElementById('result').innerText = 'Key created successfully!';
+        const response = await fetch('/admin/addKey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, shortUrl, keyUrl, duration })
+        });
+        const data = await response.json();
+        document.getElementById('result').innerText = data.message;
         loadKeys(); // Reload danh sách
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
