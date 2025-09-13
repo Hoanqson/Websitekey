@@ -18,29 +18,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
 const ADMIN_PASSWORD = 'admin123'; // Thay bằng mật khẩu mạnh hơn
-const REDIS_URL = process.env.REDIS_URL || 'redis://red-d32dg0gdl3ps7380pudg:6379'; // Internal URL, fallback nếu env không set
+const REDIS_URL = process.env.REDIS_URL || 'redis://default:nZ6iQ9Cfq7Ony2womV4u38gWlPn9Q7Zq@red-d32drbruibrs739opo7g:6379';
 let mainScript = `print("Default script: Key hợp lệ!")`;
 
-// Kết nối Redis với retry và error handling
+// Kết nối Redis với auth và error handling
 let redis;
 function connectRedis() {
   redis = new Redis(REDIS_URL, {
     retryDelayOnFailover: 100,
     enableReadyCheck: false,
-    maxRetriesPerRequest: null, // Tắt retry limit để tránh lỗi "max retries per request"
+    maxRetriesPerRequest: null,
     lazyConnect: true
   });
-  redis.on('error', (err) => {
-    console.error('Redis connection error:', err.message);
-  });
-  redis.on('connect', () => {
-    console.log('Connected to Redis KV successfully!');
-  });
-  redis.on('ready', () => {
-    console.log('Redis ready!');
-  });
+  redis.on('error', (err) => console.error('Redis error:', err.message));
+  redis.on('connect', () => console.log('Connected to Redis!'));
+  redis.on('ready', () => console.log('Redis ready!'));
 }
-connectRedis(); // Kết nối ngay
+connectRedis();
 
 const authAdmin = (req, res, next) => {
   const { password } = req.body;
@@ -49,7 +43,6 @@ const authAdmin = (req, res, next) => {
   next();
 };
 
-// Lưu key vào Redis
 async function saveKeyToRedis(key, keyData) {
   try {
     await redis.set(`key:${key}`, JSON.stringify(keyData), 'EX', 86400); // 24h TTL
@@ -60,7 +53,6 @@ async function saveKeyToRedis(key, keyData) {
   }
 }
 
-// Lấy key từ Redis
 async function getKeyFromRedis(key) {
   try {
     const data = await redis.get(`key:${key}`);
@@ -71,7 +63,6 @@ async function getKeyFromRedis(key) {
   }
 }
 
-// Xóa key từ Redis
 async function deleteKeyFromRedis(key) {
   try {
     await redis.del(`key:${key}`);
@@ -82,7 +73,6 @@ async function deleteKeyFromRedis(key) {
   }
 }
 
-// Lấy tất cả key từ Redis
 async function getAllKeysFromRedis() {
   try {
     const keys = [];
@@ -149,7 +139,6 @@ app.post('/verify', async (req, res) => {
   }
 });
 
-// Các endpoint khác giữ nguyên (website nhỏ, admin, v.v.)
 app.get('/key/:keyUrlId', async (req, res) => {
   const keyUrlId = req.params.keyUrlId;
   console.log(`Accessing keyUrlId: ${keyUrlId}`);
@@ -214,6 +203,15 @@ app.post('/admin/script', authAdmin, (req, res) => {
 
 app.post('/admin/script/get', authAdmin, (req, res) => {
   res.json({ status: 'success', script: mainScript });
+});
+
+app.get('/test-redis', async (req, res) => {
+  try {
+    await redis.ping();
+    res.json({ status: 'success', message: 'Redis connected!' });
+  } catch (error) {
+    res.json({ status: 'error', message: error.message });
+  }
 });
 
 app.get('/test', (req, res) => {
