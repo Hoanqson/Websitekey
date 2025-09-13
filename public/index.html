@@ -3,68 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lấy Key Free</title>
+  <title>Key System</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f0f0f0;
-    }
-    .container {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 300px;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: #28a745;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #218838;
-    }
-    #result {
-      margin-top: 10px;
-      word-wrap: break-word;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+    button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    #result { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Lấy Key Free</h2>
-    <button onclick="getKey()">Lấy Key</button>
-    <div id="result"></div>
-  </div>
+  <h2>Key System</h2>
+  <button onclick="getShortlink()">Lấy Shortlink</button>
+  <div id="result"></div>
 
   <script>
-    async function getKey() {
+    async function getShortlink() {
+      document.getElementById('result').innerText = 'Đang xử lý...';
       try {
-        const response = await fetch('/shorten', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
+        const response = await fetch('/shorten', { method: 'POST' });
         const data = await response.json();
         if (data.status === 'success') {
-          document.getElementById('result').innerHTML = `
-            <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
-            <p>Click shortlink để lấy key!</p>`;
+          document.getElementById('result').innerText = 'Shortlink: ' + data.shortUrl + '\nVượt link để lấy key!';
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(data.shortUrl);
+            alert('Shortlink đã được copy!');
+          }
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
         }
-      } catch (error) {
+      } test-redis catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
       }
     }
