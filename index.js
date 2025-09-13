@@ -13,20 +13,31 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Phục vụ file tĩnh (website HTML)
+// Phục vụ file tĩnh
 app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
+const ADMIN_PASSWORD = 'admin123'; // Mật khẩu admin (thay bằng mật khẩu mạnh)
 let validKeys = {};
-let mainScript = `print("Default script: Key hợp lệ!")`; // Script Roblox mặc định
+let mainScript = `print("Default script: Key hợp lệ!")`;
 
-// Endpoint tạo shortlink qua yeumoney và sinh key 24h
+// Middleware bảo mật admin
+const authAdmin = (req, res, next) => {
+  const { password } = req.body;
+  if (req.method === 'POST' && !password) return res.status(400).json({ status: 'error', message: 'Missing password' });
+  if (password !== ADMIN_PASSWORD) return res.status(403).json({ status: 'error', message: 'Invalid password' });
+  next();
+};
+
+// Endpoint tạo shortlink từ keyUrlId
 app.post('/shorten', async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ status: 'error', message: 'Missing url' });
-
   try {
-    const apiUrl = `https://yeumoney.com/QL_api.php?token=${YEUMONEY_TOKEN}&format=json&url=${encodeURIComponent(url)}`;
+    // Tạo chuỗi random cho keyUrlId (định dạng jgfgxgx-gxkzftz-gxxggx)
+    const keyUrlId = `${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}`;
+    const keyUrl = `${req.protocol}://${req.get('host')}/key/${keyUrlId}`;
+    
+    // Tạo shortlink qua yeumoney
+    const apiUrl = `https://yeumoney.com/QL_api.php?token=${YEUMONEY_TOKEN}&format=json&url=${encodeURIComponent(keyUrl)}`;
     const response = await fetch(apiUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
     });
@@ -36,10 +47,9 @@ app.post('/shorten', async (req, res) => {
     if (data.status === 'success' && data.shortenedUrl) {
       const shortUrl = data.shortenedUrl;
       const timestamp = Date.now();
-      const randomPart = crypto.randomBytes(4).toString('hex');
-      const key = crypto.createHash('md5').update(shortUrl + randomPart + timestamp).digest('hex').substring(0, 16);
-      validKeys[key] = { createdAt: timestamp, shortUrl: shortUrl, originalUrl: url };
-      res.json({ status: 'success', key: key, shortUrl: shortUrl, expiresIn: 24 * 60 * 60 * 1000 });
+      const key = crypto.randomBytes(8).toString('hex'); // Key riêng, không trùng keyUrlId
+      validKeys[key] = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId, originalUrl: keyUrl };
+      res.json({ status: 'success', shortUrl });
     } else {
       res.json({ status: 'error', message: data.message || 'Failed to create shortlink' });
     }
@@ -62,12 +72,24 @@ app.post('/verify', (req, res) => {
   }
 });
 
+// Website nhỏ hiển thị key
+app.get('/key/:keyUrlId', (req, res) => {
+  const keyUrlId = req.params.keyUrlId;
+  const keyData = Object.values(validKeys).find(data => data.keyUrlId === keyUrlId);
+  if (keyData && (Date.now() - keyData.createdAt) < 24 * 60 * 60 * 1000) {
+    res.sendFile(path.join(__dirname, 'public', 'key.html'));
+  } else {
+    res.status(404).send('Key not found or expired');
+  }
+});
+
 // Endpoint admin: Lấy danh sách key
-app.get('/admin/keys', (req, res) => {
+app.post('/admin/keys', authAdmin, (req, res) => {
   const now = Date.now();
   const keys = Object.keys(validKeys).map(key => ({
     key,
     shortUrl: validKeys[key].shortUrl,
+    keyUrl: validKeys[key].keyUrl,
     originalUrl: validKeys[key].originalUrl,
     createdAt: new Date(validKeys[key].createdAt).toLocaleString(),
     isExpired: (now - validKeys[key].createdAt) >= 24 * 60 * 60 * 1000
@@ -76,16 +98,16 @@ app.get('/admin/keys', (req, res) => {
 });
 
 // Endpoint admin: Lưu/lấy script Roblox
-app.route('/admin/script')
-  .post((req, res) => {
-    const { script } = req.body;
-    if (!script) return res.status(400).json({ status: 'error', message: 'Missing script' });
-    mainScript = script;
-    res.json({ status: 'success', message: 'Script updated' });
-  })
-  .get((req, res) => {
-    res.json({ status: 'success', script: mainScript });
-  });
+app.post('/admin/script', authAdmin, (req, res) => {
+  const { script } = req.body;
+  if (!script) return res.status(400).json({ status: 'error', message: 'Missing script' });
+  mainScript = script;
+  res.json({ status: 'success', message: 'Script updated' });
+});
+
+app.post('/admin/script/get', authAdmin, (req, res) => {
+  res.json({ status: 'success', script: mainScript });
+});
 
 // Test endpoint
 app.get('/test', (req, res) => {
