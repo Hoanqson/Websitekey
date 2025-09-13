@@ -17,7 +17,7 @@ app.use(cors({
 app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
-const ADMIN_PASSWORD = 'admin123'; // Mật khẩu admin (thay bằng mật khẩu mạnh)
+const ADMIN_PASSWORD = 'admin123'; // Thay bằng mật khẩu mạnh
 let validKeys = {};
 let mainScript = `print("Default script: Key hợp lệ!")`;
 
@@ -32,23 +32,26 @@ const authAdmin = (req, res, next) => {
 // Endpoint tạo shortlink từ keyUrlId
 app.post('/shorten', async (req, res) => {
   try {
-    // Tạo chuỗi random cho keyUrlId (định dạng jgfgxgx-gxkzftz-gxxggx)
+    // Tạo chuỗi random cho keyUrlId
     const keyUrlId = `${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}`;
     const keyUrl = `${req.protocol}://${req.get('host')}/key/${keyUrlId}`;
     
     // Tạo shortlink qua yeumoney
     const apiUrl = `https://yeumoney.com/QL_api.php?token=${YEUMONEY_TOKEN}&format=json&url=${encodeURIComponent(keyUrl)}`;
+    console.log(`Calling yeumoney API: ${apiUrl}`);
     const response = await fetch(apiUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
+    console.log(`Yeumoney response: ${JSON.stringify(data)}`);
 
     if (data.status === 'success' && data.shortenedUrl) {
       const shortUrl = data.shortenedUrl;
       const timestamp = Date.now();
-      const key = crypto.randomBytes(8).toString('hex'); // Key riêng, không trùng keyUrlId
+      const key = crypto.randomBytes(8).toString('hex');
       validKeys[key] = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId, originalUrl: keyUrl };
+      console.log(`Generated key: ${key}, keyUrlId: ${keyUrlId}, shortUrl: ${shortUrl}`);
       res.json({ status: 'success', shortUrl });
     } else {
       res.json({ status: 'error', message: data.message || 'Failed to create shortlink' });
@@ -66,8 +69,10 @@ app.post('/verify', (req, res) => {
   const keyData = validKeys[key];
 
   if (keyData && (now - keyData.createdAt) < 24 * 60 * 60 * 1000) {
+    console.log(`Verified key: ${key}`);
     res.json({ valid: true, shortUrl: keyData.shortUrl, originalUrl: keyData.originalUrl, script: mainScript });
   } else {
+    console.log(`Invalid/expired key: ${key}`);
     res.json({ valid: false, message: 'Key invalid or expired' });
   }
 });
@@ -75,11 +80,25 @@ app.post('/verify', (req, res) => {
 // Website nhỏ hiển thị key
 app.get('/key/:keyUrlId', (req, res) => {
   const keyUrlId = req.params.keyUrlId;
+  console.log(`Accessing keyUrlId: ${keyUrlId}`);
   const keyData = Object.values(validKeys).find(data => data.keyUrlId === keyUrlId);
   if (keyData && (Date.now() - keyData.createdAt) < 24 * 60 * 60 * 1000) {
     res.sendFile(path.join(__dirname, 'public', 'key.html'));
   } else {
+    console.log(`Key not found or expired for keyUrlId: ${keyUrlId}`);
     res.status(404).send('Key not found or expired');
+  }
+});
+
+// API lấy key từ keyUrlId (dùng trong key.html)
+app.get('/getKey/:keyUrlId', (req, res) => {
+  const keyUrlId = req.params.keyUrlId;
+  const keyData = Object.values(validKeys).find(data => data.keyUrlId === keyUrlId);
+  if (keyData && (Date.now() - keyData.createdAt) < 24 * 60 * 60 * 1000) {
+    const key = Object.keys(validKeys).find(key => validKeys[key].keyUrlId === keyUrlId);
+    res.json({ status: 'success', key });
+  } else {
+    res.json({ status: 'error', message: 'Key not found or expired' });
   }
 });
 
