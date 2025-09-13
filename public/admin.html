@@ -33,7 +33,7 @@
       <h3>Thêm Script Roblox</h3>
       <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
       <button onclick="saveScript()">Lưu Script</button>
-      <div id="scriptResult"></div> <!-- Thêm để hiển thị script sau khi lưu -->
+      <div id="scriptResult"></div> <!-- Hiển thị script sau khi lưu -->
       <h3>Tạo Key Thủ Công</h3>
       <input type="text" id="addKeyInput" placeholder="Nhập key (tùy chọn, để trống sẽ tự tạo)">
       <input type="number" id="addKeyDuration" placeholder="Thời gian key (giờ, tùy chọn)" min="1" value="24">
@@ -59,6 +59,10 @@
   </div>
 
   <script>
+    function generateRandomKey(length = 8) {
+      return Math.random().toString(36).substring(2, 2 + length); // Tạo key ngẫu nhiên
+    }
+
     async function login() {
       const password = document.getElementById('passwordInput').value;
       if (!password) {
@@ -139,10 +143,10 @@
     async function addKey() {
       const customKey = document.getElementById('addKeyInput').value.trim();
       const duration = parseInt(document.getElementById('addKeyDuration').value) || 24; // Mặc định 24h
-      const shortUrl = document.getElementById('addShortUrlInput').value || `https://websitekey.onrender.com/key/${customKey || crypto.randomBytes(4).toString('hex')}`;
+      const shortUrl = document.getElementById('addShortUrlInput').value || `https://websitekey.onrender.com/key/${customKey || generateRandomKey()}`;
       let keyUrl = document.getElementById('addKeyUrlInput').value;
       const password = document.getElementById('passwordInput').value;
-      const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu trống
+      const key = customKey || generateRandomKey(); // Tự tạo nếu trống
       keyUrl = keyUrl || `https://websitekey.onrender.com/key/${key}`; // Tự tạo nếu trống
 
       if (!keyUrl || !shortUrl) {
