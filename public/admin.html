@@ -33,11 +33,12 @@
       <h3>Thêm Script Roblox</h3>
       <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
       <button onclick="saveScript()">Lưu Script</button>
+      <div id="scriptResult"></div> <!-- Thêm để hiển thị script sau khi lưu -->
       <h3>Tạo Key Thủ Công</h3>
       <input type="text" id="addKeyInput" placeholder="Nhập key (tùy chọn, để trống sẽ tự tạo)">
       <input type="number" id="addKeyDuration" placeholder="Thời gian key (giờ, tùy chọn)" min="1" value="24">
-      <input type="text" id="addShortUrlInput" placeholder="Shortlink (tùy chọn)">
-      <input type="text" id="addKeyUrlInput" placeholder="URL (tự tạo, ví dụ: https://websitekey.onrender.com/key/{key})">
+      <input type="text" id="addShortUrlInput" placeholder="Shortlink (tùy chọn, để trống sẽ tự tạo)">
+      <input type="text" id="addKeyUrlInput" placeholder="URL (tùy chọn, để trống sẽ tự tạo)">
       <button onclick="addKey()">Tạo Key</button>
       <h3>Danh Sách Key</h3>
       <table id="keyTable">
@@ -115,7 +116,7 @@
       const script = document.getElementById('scriptInput').value;
       const password = document.getElementById('passwordInput').value;
       if (!script) {
-        document.getElementById('result').innerText = 'Vui lòng nhập script!';
+        document.getElementById('scriptResult').innerText = 'Vui lòng nhập script!';
         return;
       }
       try {
@@ -125,35 +126,39 @@
           body: JSON.stringify({ script, password })
         });
         const data = await response.json();
-        document.getElementById('result').innerText = data.message;
+        if (data.status === 'success') {
+          document.getElementById('scriptResult').innerText = 'Script đã lưu: ' + data.script;
+        } else {
+          document.getElementById('scriptResult').innerText = 'Lỗi: ' + data.message;
+        }
       } catch (error) {
-        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+        document.getElementById('scriptResult').innerText = 'Lỗi: ' + error.message;
       }
     }
 
     async function addKey() {
       const customKey = document.getElementById('addKeyInput').value.trim();
       const duration = parseInt(document.getElementById('addKeyDuration').value) || 24; // Mặc định 24h
-      const shortUrl = document.getElementById('addShortUrlInput').value || `https://websitekey.onrender.com/key/${customKey || crypto.randomBytes(4).toString('hex')}`; // Tùy chọn
+      const shortUrl = document.getElementById('addShortUrlInput').value || `https://websitekey.onrender.com/key/${customKey || crypto.randomBytes(4).toString('hex')}`;
       let keyUrl = document.getElementById('addKeyUrlInput').value;
       const password = document.getElementById('passwordInput').value;
-      const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu không nhập
-      keyUrl = keyUrl.replace('{key}', key) || `https://websitekey.onrender.com/key/${key}`; // URL tự tạo
+      const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu trống
+      keyUrl = keyUrl || `https://websitekey.onrender.com/key/${key}`; // Tự tạo nếu trống
 
       if (!keyUrl || !shortUrl) {
-        document.getElementById('result').innerText = 'Vui lòng nhập URL và Shortlink!';
+        document.getElementById('result').innerText = 'Vui lòng kiểm tra URL hoặc Shortlink!';
         return;
       }
       try {
         const timestamp = Date.now();
-        const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId: key, originalUrl: keyUrl, expiresIn: duration * 60 * 60 }; // Chuyển giờ sang giây
+        const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId: key, originalUrl: keyUrl, expiresIn: duration * 60 * 60 };
         const response = await fetch('/admin/addKey', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, shortUrl, keyUrl, duration })
+          body: JSON.stringify({ key, shortUrl, keyUrl, duration, password })
         });
         const data = await response.json();
-        document.getElementById('result').innerText = data.message;
+        document.getElementById('result').innerText = data.message + (data.key ? ` (Key: ${data.key})` : '');
         loadKeys(); // Reload danh sách
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
