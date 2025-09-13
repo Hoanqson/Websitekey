@@ -5,63 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: #f0f0f0;
-    }
-    .container {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 800px;
-      margin: auto;
-    }
-    input, textarea, button {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #28a745;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #218838;
-    }
-    .delete-btn {
-      background-color: #dc3545;
-    }
-    .delete-btn:hover {
-      background-color: #c82333;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-    #result {
-      margin-top: 10px;
-    }
-    #authSection {
-      display: block;
-    }
-    #adminSection {
-      display: none;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }
+    .container { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+    input, textarea, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { background-color: #28a745; color: white; cursor: pointer; }
+    button:hover { background-color: #218838; }
+    .delete-btn { background-color: #dc3545; }
+    .delete-btn:hover { background-color: #c82333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    #result { margin-top: 10px; }
+    #authSection { display: block; }
+    #adminSection { display: none; }
   </style>
 </head>
 <body>
@@ -126,21 +82,32 @@
       }
     }
 
-    function loadKeys(keys) {
-      const tbody = document.getElementById('keyList');
-      tbody.innerHTML = '';
-      keys.forEach(key => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${key.key}</td>
-          <td><a href="${key.shortUrl}" target="_blank">${key.shortUrl}</a></td>
-          <td><a href="${key.keyUrl}" target="_blank">${key.keyUrl}</a></td>
-          <td>${key.originalUrl}</td>
-          <td>${key.createdAt}</td>
-          <td>${key.isExpired ? 'Hết hạn' : 'Còn hạn'}</td>
-          <td><button class="delete-btn" onclick="deleteKey('${key.key}')">Xóa</button></td>`;
-        tbody.appendChild(row);
-      });
+    async function loadKeys() {
+      const password = document.getElementById('passwordInput').value;
+      try {
+        const response = await fetch('/admin/keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await response.json();
+        const tbody = document.getElementById('keyList');
+        tbody.innerHTML = '';
+        data.forEach(key => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${key.key}</td>
+            <td><a href="${key.shortUrl}" target="_blank">${key.shortUrl}</a></td>
+            <td><a href="${key.keyUrl}" target="_blank">${key.keyUrl}</a></td>
+            <td>${key.originalUrl}</td>
+            <td>${key.createdAt}</td>
+            <td>${key.isExpired ? 'Hết hạn' : 'Còn hạn'}</td>
+            <td><button class="delete-btn" onclick="deleteKey('${key.key}')">Xóa</button></td>`;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi load key: ' + error.message;
+      }
     }
 
     async function saveScript() {
@@ -200,21 +167,6 @@
         loadKeys(); // Reload danh sách
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
-      }
-    }
-
-    async function loadKeys() {
-      const password = document.getElementById('passwordInput').value;
-      try {
-        const response = await fetch('/admin/keys', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await response.json();
-        loadKeys(data);
-      } catch (error) {
-        document.getElementById('result').innerText = 'Lỗi load key: ' + error.message;
       }
     }
   </script>
