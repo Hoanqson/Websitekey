@@ -18,7 +18,6 @@
     #result { margin-top: 10px; }
     #authSection { display: block; }
     #adminSection { display: none; }
-    #currentScript { margin-top: 20px; background-color: #f8f9fa; padding: 10px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -34,11 +33,10 @@
       <h3>Thêm Script Roblox</h3>
       <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
       <button onclick="saveScript()">Lưu Script</button>
-      <h3>Script Hiện Tại</h3>
-      <div id="currentScript">Đang tải...</div>
       <h3>Tạo Key Thủ Công</h3>
       <input type="text" id="addKeyInput" placeholder="Nhập key (tùy chọn, để trống sẽ tự tạo)">
       <input type="number" id="addKeyDuration" placeholder="Thời gian key (giờ, tùy chọn)" min="1" value="24">
+      <input type="text" id="addShortUrlInput" placeholder="Shortlink (tùy chọn)">
       <input type="text" id="addKeyUrlInput" placeholder="URL (tự tạo, ví dụ: https://websitekey.onrender.com/key/{key})">
       <button onclick="addKey()">Tạo Key</button>
       <h3>Danh Sách Key</h3>
@@ -77,7 +75,6 @@
           document.getElementById('authSection').style.display = 'none';
           document.getElementById('adminSection').style.display = 'block';
           loadKeys();
-          loadCurrentScript();
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
         }
@@ -114,25 +111,6 @@
       }
     }
 
-    async function loadCurrentScript() {
-      const password = document.getElementById('passwordInput').value;
-      try {
-        const response = await fetch('/admin/script/get', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-          document.getElementById('currentScript').innerText = 'Script Hiện Tại:\n' + data.script;
-        } else {
-          document.getElementById('currentScript').innerText = 'Lỗi tải script: ' + data.message;
-        }
-      } catch (error) {
-        document.getElementById('currentScript').innerText = 'Lỗi: ' + error.message;
-      }
-    }
-
     async function saveScript() {
       const script = document.getElementById('scriptInput').value;
       const password = document.getElementById('passwordInput').value;
@@ -148,7 +126,6 @@
         });
         const data = await response.json();
         document.getElementById('result').innerText = data.message;
-        loadCurrentScript(); // Cập nhật script hiện tại
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
       }
@@ -157,14 +134,14 @@
     async function addKey() {
       const customKey = document.getElementById('addKeyInput').value.trim();
       const duration = parseInt(document.getElementById('addKeyDuration').value) || 24; // Mặc định 24h
+      const shortUrl = document.getElementById('addShortUrlInput').value || `https://websitekey.onrender.com/key/${customKey || crypto.randomBytes(4).toString('hex')}`; // Tùy chọn
       let keyUrl = document.getElementById('addKeyUrlInput').value;
       const password = document.getElementById('passwordInput').value;
       const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu không nhập
       keyUrl = keyUrl.replace('{key}', key) || `https://websitekey.onrender.com/key/${key}`; // URL tự tạo
-      const shortUrl = keyUrl; // Giả lập shortUrl (thay bằng API yeumoney nếu cần)
 
-      if (!keyUrl) {
-        document.getElementById('result').innerText = 'Vui lòng nhập URL!';
+      if (!keyUrl || !shortUrl) {
+        document.getElementById('result').innerText = 'Vui lòng nhập URL và Shortlink!';
         return;
       }
       try {
