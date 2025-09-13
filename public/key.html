@@ -3,77 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Key Details</title>
+  <title>Key</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f0f0f0;
-    }
-    .container {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 300px;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: #ffc107;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #e0a800;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+    #key { font-size: 18px; color: #333; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Key Details</h2>
-    <p><b>Key:</b> <span id="key">Loading...</span></p>
-    <button onclick="copyKey()">Copy Key</button>
-  </div>
+  <h2>Key Của Bạn</h2>
+  <div id="key"></div>
 
   <script>
-    const keyUrlId = window.location.pathname.split('/').pop();
-    async function loadKey() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const keyUrlId = urlParams.get('keyUrlId') || window.location.pathname.split('/').pop();
+
+    async function getKey() {
       try {
         const response = await fetch(`/getKey/${keyUrlId}`);
         const data = await response.json();
         if (data.status === 'success') {
-          document.getElementById('key').innerText = data.key;
+          document.getElementById('key').innerText = 'Key: ' + data.key + '\nCopy và dùng trong game!';
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(data.key);
+            alert('Key đã được copy!');
+          }
         } else {
-          document.getElementById('key').innerText = 'Key not found or expired';
+          document.getElementById('key').innerText = 'Lỗi: ' + data.message;
         }
       } catch (error) {
         document.getElementById('key').innerText = 'Lỗi: ' + error.message;
       }
     }
-
-    function copyKey() {
-      const key = document.getElementById('key').innerText;
-      if (key && key !== 'Key not found or expired' && key !== 'Loading...') {
-        navigator.clipboard.writeText(key).then(() => {
-          alert('Đã copy key: ' + key);
-        }).catch(err => {
-          alert('Lỗi copy: ' + err);
-        });
-      } else {
-        alert('Chưa có key để copy!');
-      }
-    }
-
-    loadKey();
+    getKey();
   </script>
 </body>
 </html>
