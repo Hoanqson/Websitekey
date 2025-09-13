@@ -1,4 +1,3 @@
-// Trong index.js, thay thế hoàn toàn
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -55,7 +54,7 @@ async function saveKeyToRedis(key, keyData) {
     return;
   }
   try {
-    await redis.set(`key:${key}`, JSON.stringify(keyData), 'EX', keyData.expiresIn || 86400); // TTL từ keyData
+    await redis.set(`key:${key}`, JSON.stringify(keyData), 'EX', 86400); // 24h TTL
     console.log(`Saved key to Redis: ${key}`);
   } catch (error) {
     console.error('Error saving to Redis:', error.message);
@@ -103,7 +102,7 @@ async function getAllKeysFromRedis() {
         keyUrl: global.validKeys[k].keyUrl,
         originalUrl: global.validKeys[k].originalUrl,
         createdAt: new Date(global.validKeys[k].createdAt).toLocaleString(),
-        isExpired: (now - global.validKeys[k].createdAt) >= (global.validKeys[k].expiresIn || 86400) * 1000
+        isExpired: (now - global.validKeys[k].createdAt) >= 24 * 60 * 60 * 1000
       }));
       return keys;
     }
@@ -117,10 +116,7 @@ async function getAllKeysFromRedis() {
       cursor = parseInt(nextCursor);
       for (const k of keyList) {
         const data = await redis.get(k);
-        if (data) {
-          const parsed = JSON.parse(data);
-          keys.push({ key: k.replace('key:', ''), data: parsed });
-        }
+        if (data) keys.push({ key: k.replace('key:', ''), data: JSON.parse(data) });
       }
     } while (cursor !== 0);
     return keys;
@@ -134,7 +130,7 @@ async function getAllKeysFromRedis() {
         keyUrl: global.validKeys[k].keyUrl,
         originalUrl: global.validKeys[k].originalUrl,
         createdAt: new Date(global.validKeys[k].createdAt).toLocaleString(),
-        isExpired: (now - global.validKeys[k].createdAt) >= (global.validKeys[k].expiresIn || 86400) * 1000
+        isExpired: (now - global.validKeys[k].createdAt) >= 24 * 60 * 60 * 1000
       }));
       return keys;
     }
@@ -142,7 +138,7 @@ async function getAllKeysFromRedis() {
   }
 }
 
-// Endpoint tạo shortlink
+// Endpoint tạo shortlink (khôi phục logic ban đầu)
 app.post('/shorten', async (req, res) => {
   try {
     const keyUrlId = `${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}-${crypto.randomBytes(4).toString('hex')}`;
@@ -161,7 +157,7 @@ app.post('/shorten', async (req, res) => {
       const shortUrl = data.shortenedUrl;
       const timestamp = Date.now();
       const key = crypto.randomBytes(8).toString('hex');
-      const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId, originalUrl: keyUrl, expiresIn: 24 * 60 * 60 }; // 24h TTL
+      const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId, originalUrl: keyUrl };
       await saveKeyToRedis(key, keyData);
       console.log(`Generated key: ${key}, keyUrlId: ${keyUrlId}, shortUrl: ${shortUrl}`);
       res.json({ status: 'success', shortUrl });
@@ -180,7 +176,7 @@ app.post('/verify', async (req, res) => {
   const now = Date.now();
   const keyData = await getKeyFromRedis(key);
 
-  if (keyData && (now - keyData.createdAt) < (keyData.expiresIn || 86400) * 1000) {
+  if (keyData && (now - keyData.createdAt) < 24 * 60 * 60 * 1000) {
     console.log(`Verified key: ${key}`);
     res.json({ valid: true, shortUrl: keyData.shortUrl, originalUrl: keyData.originalUrl, script: mainScript });
   } else {
@@ -195,7 +191,7 @@ app.get('/key/:keyUrlId', async (req, res) => {
   console.log(`Accessing keyUrlId: ${keyUrlId}`);
   const allKeys = await getAllKeysFromRedis();
   const keyData = allKeys.find(k => k.data.keyUrlId === keyUrlId);
-  if (keyData && (Date.now() - keyData.data.createdAt) < (keyData.data.expiresIn || 86400) * 1000) {
+  if (keyData && (Date.now() - keyData.data.createdAt) < 24 * 60 * 60 * 1000) {
     res.sendFile(path.join(__dirname, 'public', 'key.html'));
   } else {
     console.log(`Key not found or expired for keyUrlId: ${keyUrlId}`);
@@ -207,7 +203,7 @@ app.get('/getKey/:keyUrlId', async (req, res) => {
   const keyUrlId = req.params.keyUrlId;
   const allKeys = await getAllKeysFromRedis();
   const keyData = allKeys.find(k => k.data.keyUrlId === keyUrlId);
-  if (keyData && (Date.now() - keyData.data.createdAt) < (keyData.data.expiresIn || 86400) * 1000) {
+  if (keyData && (Date.now() - keyData.data.createdAt) < 24 * 60 * 60 * 1000) {
     res.json({ status: 'success', key: keyData.key });
   } else {
     res.json({ status: 'error', message: 'Key not found or expired' });
@@ -223,7 +219,7 @@ app.post('/admin/keys', authAdmin, async (req, res) => {
     keyUrl: k.data.keyUrl,
     originalUrl: k.data.originalUrl,
     createdAt: new Date(k.data.createdAt).toLocaleString(),
-    isExpired: (now - k.data.createdAt) >= (k.data.expiresIn || 86400) * 1000
+    isExpired: (now - k.data.createdAt) >= 24 * 60 * 60 * 1000
   }));
   res.json(keys);
 });
