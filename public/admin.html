@@ -18,6 +18,7 @@
     #result { margin-top: 10px; }
     #authSection { display: block; }
     #adminSection { display: none; }
+    #currentScript { margin-top: 20px; background-color: #f8f9fa; padding: 10px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -33,11 +34,13 @@
       <h3>Thêm Script Roblox</h3>
       <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
       <button onclick="saveScript()">Lưu Script</button>
-      <h3>Thêm Key Thủ Công</h3>
-      <input type="text" id="addKeyInput" placeholder="Nhập key mới">
-      <input type="text" id="addShortUrlInput" placeholder="Shortlink">
-      <input type="text" id="addKeyUrlInput" placeholder="Key URL">
-      <button onclick="addKey()">Thêm Key</button>
+      <h3>Script Hiện Tại</h3>
+      <div id="currentScript">Đang tải...</div>
+      <h3>Tạo Key Thủ Công</h3>
+      <input type="text" id="addKeyInput" placeholder="Nhập key (tùy chọn, để trống sẽ tự tạo)">
+      <input type="number" id="addKeyDuration" placeholder="Thời gian key (giờ, tùy chọn)" min="1" value="24">
+      <input type="text" id="addKeyUrlInput" placeholder="URL (tự tạo, ví dụ: /key/{key})">
+      <button onclick="addKey()">Tạo Key</button>
       <h3>Danh Sách Key</h3>
       <table id="keyTable">
         <thead>
@@ -73,7 +76,8 @@
         if (Array.isArray(data)) {
           document.getElementById('authSection').style.display = 'none';
           document.getElementById('adminSection').style.display = 'block';
-          loadKeys(data);
+          loadKeys();
+          loadCurrentScript();
         } else {
           document.getElementById('result').innerText = 'Lỗi: ' + data.message;
         }
@@ -110,6 +114,25 @@
       }
     }
 
+    async function loadCurrentScript() {
+      const password = document.getElementById('passwordInput').value;
+      try {
+        const response = await fetch('/admin/script/get', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+          document.getElementById('currentScript').innerText = 'Script Hiện Tại:\n' + data.script;
+        } else {
+          document.getElementById('currentScript').innerText = 'Lỗi tải script: ' + data.message;
+        }
+      } catch (error) {
+        document.getElementById('currentScript').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
     async function saveScript() {
       const script = document.getElementById('scriptInput').value;
       const password = document.getElementById('passwordInput').value;
@@ -125,28 +148,30 @@
         });
         const data = await response.json();
         document.getElementById('result').innerText = data.message;
+        loadCurrentScript(); // Cập nhật script hiện tại
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
       }
     }
 
     async function addKey() {
-      const key = document.getElementById('addKeyInput').value;
-      const shortUrl = document.getElementById('addShortUrlInput').value;
-      const keyUrl = document.getElementById('addKeyUrlInput').value;
+      const customKey = document.getElementById('addKeyInput').value.trim();
+      const duration = parseInt(document.getElementById('addKeyDuration').value) || 24; // Mặc định 24h
+      let keyUrl = document.getElementById('addKeyUrlInput').value;
       const password = document.getElementById('passwordInput').value;
-      if (!key || !shortUrl) {
-        document.getElementById('result').innerText = 'Vui lòng nhập key và shortlink!';
+      const key = customKey || crypto.randomBytes(4).toString('hex'); // Tự tạo nếu không nhập
+      keyUrl = keyUrl.replace('{key}', key) || `${window.location.origin}/key/${key}`; // Tự tạo URL
+      const shortUrl = keyUrl; // Giả lập, thay bằng API yeumoney nếu cần
+
+      if (!keyUrl) {
+        document.getElementById('result').innerText = 'Vui lòng nhập URL!';
         return;
       }
       try {
-        const response = await fetch('/admin/addKey', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, shortUrl, keyUrl, password })
-        });
-        const data = await response.json();
-        document.getElementById('result').innerText = data.message;
+        const timestamp = Date.now();
+        const keyData = { createdAt: timestamp, shortUrl, keyUrl, keyUrlId: key, originalUrl: keyUrl, expiresIn: duration * 60 * 60 }; // Chuyển giờ sang giây
+        await saveKeyToRedis(key, keyData);
+        document.getElementById('result').innerText = 'Key created successfully!';
         loadKeys(); // Reload danh sách
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
