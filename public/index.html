@@ -22,27 +22,18 @@
       text-align: center;
       width: 300px;
     }
-    input, button {
+    button {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
       border: 1px solid #ccc;
       border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
       background-color: #28a745;
       color: white;
       cursor: pointer;
     }
     button:hover {
       background-color: #218838;
-    }
-    #randomBtn {
-      background-color: #007bff;
-    }
-    #randomBtn:hover {
-      background-color: #0056b3;
     }
     #copyBtn {
       background-color: #ffc107;
@@ -59,27 +50,22 @@
 <body>
   <div class="container">
     <h2>Lấy Key Free</h2>
-    <input type="text" id="urlInput" placeholder="Nhập URL (website/script)">
-    <button onclick="createShortlink()">Tạo Shortlink & Lấy Key</button>
-    <button id="randomBtn" onclick="generateRandomKey()">Tạo Key Random</button>
+    <button onclick="getKey()">Lấy Key</button>
     <div id="result"></div>
     <button id="copyBtn" style="display: none;" onclick="copyKey()">Copy Key</button>
   </div>
 
   <script>
     let currentKey = '';
+    // URL script chính (thay bằng URL thật của bạn, ví dụ pastebin)
+    const SCRIPT_URL = 'https://pastebin.com/raw/abc123';
 
-    async function createShortlink() {
-      const url = document.getElementById('urlInput').value;
-      if (!url) {
-        document.getElementById('result').innerText = 'Vui lòng nhập URL!';
-        return;
-      }
+    async function getKey() {
       try {
         const response = await fetch('/shorten', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
+          body: JSON.stringify({ url: SCRIPT_URL })
         });
         const data = await response.json();
         if (data.status === 'success') {
@@ -87,32 +73,6 @@
           document.getElementById('result').innerHTML = `
             <p><b>Key:</b> ${data.key}</p>
             <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
-            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
-            <p>Hết hạn sau 24h</p>`;
-          document.getElementById('copyBtn').style.display = 'block';
-        } else {
-          document.getElementById('result').innerText = 'Lỗi: ' + data.message;
-          document.getElementById('copyBtn').style.display = 'none';
-        }
-      } catch (error) {
-        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
-        document.getElementById('copyBtn').style.display = 'none';
-      }
-    }
-
-    async function generateRandomKey() {
-      try {
-        const response = await fetch('/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}'
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-          currentKey = data.key;
-          document.getElementById('result').innerHTML = `
-            <p><b>Key:</b> ${data.key}</p>
-            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
             <p>Hết hạn sau 24h</p>`;
           document.getElementById('copyBtn').style.display = 'block';
         } else {
