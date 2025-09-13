@@ -1,3 +1,4 @@
+// Trong index.js, thay thế hoàn toàn
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -17,7 +18,7 @@ app.use(cors({
 app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
-const ADMIN_PASSWORD = 'admin123'; // Thay bằng mật khẩu mạnh hơn
+const ADMIN_PASSWORD = 'admin123'; // Thay mạnh hơn
 const REDIS_URL = process.env.REDIS_URL || 'redis://red-d32drbruibrs739opo7g:6379'; // Fallback KV
 let mainScript = `print("Default script: Key hợp lệ!")`;
 
