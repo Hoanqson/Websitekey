@@ -18,6 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const YEUMONEY_TOKEN = 'b12dedf3e4c2bb1d1e86ad343f1954067fbe29e81b45f0e14d72eef867bafe24';
 let validKeys = {};
+let mainScript = `print("Default script: Key hợp lệ!")`; // Script Roblox mặc định
 
 // Endpoint tạo shortlink qua yeumoney và sinh key 24h
 app.post('/shorten', async (req, res) => {
@@ -38,8 +39,7 @@ app.post('/shorten', async (req, res) => {
       const randomPart = crypto.randomBytes(4).toString('hex');
       const key = crypto.createHash('md5').update(shortUrl + randomPart + timestamp).digest('hex').substring(0, 16);
       validKeys[key] = { createdAt: timestamp, shortUrl: shortUrl, originalUrl: url };
-      const keyUrl = `${req.protocol}://${req.get('host')}/key/${key}`;
-      res.json({ status: 'success', key: key, shortUrl: shortUrl, keyUrl: keyUrl, expiresIn: 24 * 60 * 60 * 1000 });
+      res.json({ status: 'success', key: key, shortUrl: shortUrl, expiresIn: 24 * 60 * 60 * 1000 });
     } else {
       res.json({ status: 'error', message: data.message || 'Failed to create shortlink' });
     }
@@ -49,15 +49,6 @@ app.post('/shorten', async (req, res) => {
   }
 });
 
-// Endpoint tạo key random
-app.post('/generate', (req, res) => {
-  const key = crypto.randomBytes(8).toString('hex');
-  const timestamp = Date.now();
-  validKeys[key] = { createdAt: timestamp, shortUrl: 'none', originalUrl: 'none' };
-  const keyUrl = `${req.protocol}://${req.get('host')}/key/${key}`;
-  res.json({ status: 'success', key: key, keyUrl: keyUrl, expiresIn: 24 * 60 * 60 * 1000 });
-});
-
 // Endpoint verify key
 app.post('/verify', (req, res) => {
   const { key } = req.body;
@@ -65,31 +56,50 @@ app.post('/verify', (req, res) => {
   const keyData = validKeys[key];
 
   if (keyData && (now - keyData.createdAt) < 24 * 60 * 60 * 1000) {
-    res.json({ valid: true, shortUrl: keyData.shortUrl, originalUrl: keyData.originalUrl });
+    res.json({ valid: true, shortUrl: keyData.shortUrl, originalUrl: keyData.originalUrl, script: mainScript });
   } else {
     res.json({ valid: false, message: 'Key invalid or expired' });
   }
 });
 
-// Phục vụ website nhỏ cho key cụ thể
-app.get('/key/:keyId', (req, res) => {
-  const keyId = req.params.keyId;
-  const keyData = validKeys[keyId];
-  if (keyData && (Date.now() - keyData.createdAt) < 24 * 60 * 60 * 1000) {
-    res.sendFile(path.join(__dirname, 'public', 'key.html'));
-  } else {
-    res.status(404).send('Key not found or expired');
-  }
+// Endpoint admin: Lấy danh sách key
+app.get('/admin/keys', (req, res) => {
+  const now = Date.now();
+  const keys = Object.keys(validKeys).map(key => ({
+    key,
+    shortUrl: validKeys[key].shortUrl,
+    originalUrl: validKeys[key].originalUrl,
+    createdAt: new Date(validKeys[key].createdAt).toLocaleString(),
+    isExpired: (now - validKeys[key].createdAt) >= 24 * 60 * 60 * 1000
+  }));
+  res.json(keys);
 });
+
+// Endpoint admin: Lưu/lấy script Roblox
+app.route('/admin/script')
+  .post((req, res) => {
+    const { script } = req.body;
+    if (!script) return res.status(400).json({ status: 'error', message: 'Missing script' });
+    mainScript = script;
+    res.json({ status: 'success', message: 'Script updated' });
+  })
+  .get((req, res) => {
+    res.json({ status: 'success', script: mainScript });
+  });
 
 // Test endpoint
 app.get('/test', (req, res) => {
   res.json({ message: 'Server ok!' });
 });
 
-// Phục vụ website chính
+// Website công khai
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Website admin
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 app.listen(port, () => {
