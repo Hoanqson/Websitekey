@@ -22,31 +22,18 @@
       text-align: center;
       width: 300px;
     }
-    input, button {
+    button {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
       border: 1px solid #ccc;
       border-radius: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #28a745;
+      background-color: #ffc107;
       color: white;
       cursor: pointer;
     }
     button:hover {
-      background-color: #218838;
-    }
-    #copyBtn {
-      background-color: #ffc107;
-    }
-    #copyBtn:hover {
       background-color: #e0a800;
-    }
-    #result {
-      margin-top: 10px;
-      word-wrap: break-word;
     }
   </style>
 </head>
@@ -54,50 +41,34 @@
   <div class="container">
     <h2>Key Details</h2>
     <p><b>Key:</b> <span id="key"></span></p>
-    <button id="copyBtn" onclick="copyKey()">Copy Key</button>
-    <input type="text" id="urlInput" placeholder="Nhập URL để tạo shortlink">
-    <button onclick="createShortlink()">Tạo Shortlink</button>
-    <div id="result"></div>
+    <button onclick="copyKey()">Copy Key</button>
   </div>
 
   <script>
-    const key = window.location.pathname.split('/').pop();
-    document.getElementById('key').innerText = key;
-    let currentKey = key;
-
-    async function createShortlink() {
-      const url = document.getElementById('urlInput').value;
-      if (!url) {
-        document.getElementById('result').innerText = 'Vui lòng nhập URL!';
-        return;
-      }
+    const keyUrlId = window.location.pathname.split('/').pop();
+    async function loadKey() {
       try {
-        const response = await fetch('/shorten', {
+        const response = await fetch('/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
+          body: JSON.stringify({ key: keyUrlId })
         });
         const data = await response.json();
-        if (data.status === 'success') {
-          document.getElementById('result').innerHTML = `
-            <p><b>New Key:</b> ${data.key}</p>
-            <p><b>Shortlink:</b> <a href="${data.shortUrl}" target="_blank">${data.shortUrl}</a></p>
-            <p><b>Key URL:</b> <a href="${data.keyUrl}" target="_blank">${data.keyUrl}</a></p>
-            <p>Hết hạn sau 24h</p>`;
-          currentKey = data.key;
-          document.getElementById('copyBtn').style.display = 'block';
+        if (data.valid) {
+          document.getElementById('key').innerText = Object.keys(validKeys).find(key => validKeys[key].keyUrlId === keyUrlId);
         } else {
-          document.getElementById('result').innerText = 'Lỗi: ' + data.message;
+          document.getElementById('key').innerText = 'Key not found or expired';
         }
       } catch (error) {
-        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+        document.getElementById('key').innerText = 'Lỗi: ' + error.message;
       }
     }
 
     function copyKey() {
-      if (currentKey) {
-        navigator.clipboard.writeText(currentKey).then(() => {
-          alert('Đã copy key: ' + currentKey);
+      const key = document.getElementById('key').innerText;
+      if (key && key !== 'Key not found or expired') {
+        navigator.clipboard.writeText(key).then(() => {
+          alert('Đã copy key: ' + key);
         }).catch(err => {
           alert('Lỗi copy: ' + err);
         });
@@ -105,6 +76,8 @@
         alert('Chưa có key để copy!');
       }
     }
+
+    loadKey();
   </script>
 </body>
 </html>
