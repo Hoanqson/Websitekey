@@ -34,6 +34,12 @@
     button:hover {
       background-color: #218838;
     }
+    .delete-btn {
+      background-color: #dc3545;
+    }
+    .delete-btn:hover {
+      background-color: #c82333;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -71,6 +77,11 @@
       <h3>Thêm Script Roblox</h3>
       <textarea id="scriptInput" rows="5" placeholder="Nhập script Roblox chính"></textarea>
       <button onclick="saveScript()">Lưu Script</button>
+      <h3>Thêm Key Thủ Công</h3>
+      <input type="text" id="addKeyInput" placeholder="Nhập key mới">
+      <input type="text" id="addShortUrlInput" placeholder="Shortlink">
+      <input type="text" id="addKeyUrlInput" placeholder="Key URL">
+      <button onclick="addKey()">Thêm Key</button>
       <h3>Danh Sách Key</h3>
       <table id="keyTable">
         <thead>
@@ -81,6 +92,7 @@
             <th>Original URL</th>
             <th>Thời Gian Tạo</th>
             <th>Trạng Thái</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="keyList"></tbody>
@@ -120,12 +132,13 @@
       keys.forEach(key => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${ key.key}</td>
+          <td>${key.key}</td>
           <td><a href="${key.shortUrl}" target="_blank">${key.shortUrl}</a></td>
           <td><a href="${key.keyUrl}" target="_blank">${key.keyUrl}</a></td>
           <td>${key.originalUrl}</td>
           <td>${key.createdAt}</td>
-          <td>${key.isExpired ? 'Hết hạn' : 'Còn hạn'}</td>`;
+          <td>${key.isExpired ? 'Hết hạn' : 'Còn hạn'}</td>
+          <td><button class="delete-btn" onclick="deleteKey('${key.key}')">Xóa</button></td>`;
         tbody.appendChild(row);
       });
     }
@@ -147,6 +160,61 @@
         document.getElementById('result').innerText = data.message;
       } catch (error) {
         document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
+    async function addKey() {
+      const key = document.getElementById('addKeyInput').value;
+      const shortUrl = document.getElementById('addShortUrlInput').value;
+      const keyUrl = document.getElementById('addKeyUrlInput').value;
+      const password = document.getElementById('passwordInput').value;
+      if (!key || !shortUrl) {
+        document.getElementById('result').innerText = 'Vui lòng nhập key và shortlink!';
+        return;
+      }
+      try {
+        const response = await fetch('/admin/addKey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, shortUrl, keyUrl, password })
+        });
+        const data = await response.json();
+        document.getElementById('result').innerText = data.message;
+        loadKeys(); // Reload danh sách
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
+    async function deleteKey(key) {
+      const password = document.getElementById('passwordInput').value;
+      if (!confirm('Xóa key này?')) return;
+      try {
+        const response = await fetch('/admin/deleteKey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, password })
+        });
+        const data = await response.json();
+        document.getElementById('result').innerText = data.message;
+        loadKeys(); // Reload danh sách
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi: ' + error.message;
+      }
+    }
+
+    async function loadKeys() {
+      const password = document.getElementById('passwordInput').value;
+      try {
+        const response = await fetch('/admin/keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await response.json();
+        loadKeys(data);
+      } catch (error) {
+        document.getElementById('result').innerText = 'Lỗi load key: ' + error.message;
       }
     }
   </script>
